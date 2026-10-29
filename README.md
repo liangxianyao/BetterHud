@@ -22,9 +22,7 @@ This project implements a server-side HUD.
 - Supports animation.
 
 ### Platform
-- Bukkit(with Folia) 1.21–26.1.x
-- Velocity 3.3-3.5
-- Fabric server 26.1.x
+- Default Bukkit target: Paper 1.21.4 (`v1_21_R3`)
 
 ### Library
 - [kotlin stdlib](https://github.com/JetBrains/kotlin): Implements better functional programming.
@@ -46,14 +44,10 @@ This project implements a server-side HUD.
 - Fabric server: [Fabric API](https://modrinth.com/mod/fabric-api)
 
 ### Build
-Requires Java 25 Eclipse Adoptium.
+Requires Java 21.
 
-- Build all available jar: ./gradlew build  
+- Build the default Paper 1.21.4 plugin: ./gradlew build
 - Build Bukkit plugin: ./gradlew pluginJar
-- Build Velocity plugin: ./gradlew velocityJar
-- Build Fabric server side mod: ./gradlew fabricJar  
-- Build source code jar: ./gradlew sourcesJar  
-- Build dokka-based docs jar: ./gradlew javadocJar
 
 ### API
 [Bukkit example plugin](https://github.com/toxicity188/BetterHud-MMOCore)  

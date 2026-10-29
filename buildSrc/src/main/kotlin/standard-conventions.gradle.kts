@@ -7,7 +7,7 @@ plugins {
 group = "kr.toxicity.hud"
 version = property("version").toString() + (BUILD_NUMBER?.let { "-SNAPSHOT-$it" } ?: "")
 
-val targetJavaVersion = 25
+val targetJavaVersion = 21
 
 dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test")
@@ -25,7 +25,6 @@ tasks {
 
 java {
     disableAutoTargetJvm()
-    toolchain.vendor = JvmVendorSpec.ADOPTIUM
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
 }
 

@@ -17,12 +17,6 @@ dependencies {
     shade(project(":scheduler:paper")) { isTransitive = false }
 
     shade(project(":nms:v1_21_R3", configuration = "reobf")) { isTransitive = false }
-    shade(project(":nms:v1_21_R4", configuration = "reobf")) { isTransitive = false }
-    shade(project(":nms:v1_21_R5", configuration = "reobf")) { isTransitive = false }
-    shade(project(":nms:v1_21_R6", configuration = "reobf")) { isTransitive = false }
-    shade(project(":nms:v1_21_R7", configuration = "reobf")) { isTransitive = false }
-    shade(project(":nms:v26_R1")) { isTransitive = false }
-    shade(project(":nms:v26_R2")) { isTransitive = false }
 
     shade(libs.bstats.bukkit)
     shade(libs.kotlinStdlib)
@@ -180,6 +174,6 @@ tasks {
 modrinth {
     uploadFile.set(tasks.shadowJar)
     versionName = "BetterHud ${project.version} for Bukkit"
-    gameVersions = SUPPORTED_MINECRAFT_VERSION
+    gameVersions = listOf("1.21.4")
     loaders = listOf("bukkit", "spigot", "paper", "folia", "purpur")
 }

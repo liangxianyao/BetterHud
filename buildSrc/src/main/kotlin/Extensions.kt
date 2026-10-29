@@ -4,19 +4,7 @@ import org.gradle.api.Project
 val BUILD_NUMBER: String? = System.getenv("BUILD_NUMBER")
 
 val SUPPORTED_MINECRAFT_VERSION = listOf(
-    "1.21.4",
-    "1.21.5",
-    "1.21.6",
-    "1.21.7",
-    "1.21.8",
-    "1.21.9",
-    "1.21.10",
-    "1.21.11",
-    "26.1",
-    "26.1.1",
-    "26.1.2",
-    "26.2",
-    "26.3"
+    "1.21.4"
 )
 
 val Project.libs

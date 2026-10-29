@@ -9,14 +9,16 @@ plugins {
 
 val minecraft = property("minecraft_version")!!.toString()
 
-dependencies {
-    fun searchAll(target: Project) {
-        val sub = target.subprojects
-        if (sub.isNotEmpty()) sub.forEach {
-            searchAll(it)
-        } else dokka(target)
+if (gradle.startParameter.taskNames.any { it.removePrefix(":") == "javadocJar" }) {
+    dependencies {
+        fun searchAll(target: Project) {
+            val sub = target.subprojects
+            if (sub.isNotEmpty()) sub.forEach {
+                searchAll(it)
+            } else dokka(target)
+        }
+        searchAll(rootProject)
     }
-    searchAll(rootProject)
 }
 
 val javadocJar = tasks.register<Jar>("javadocJar") {
@@ -30,25 +32,15 @@ runPaper {
 }
 
 val bukkit = project("bootstrap:bukkit")
-val fabric = project("bootstrap:fabric")
-val velocity = project("bootstrap:velocity")
 
 tasks.register("pluginJar") {
     dependsOn(bukkit.tasks.build)
-}
-tasks.register("fabricJar") {
-    dependsOn(fabric.tasks.build)
-}
-tasks.register("velocityJar") {
-    dependsOn(velocity.tasks.build)
 }
 
 tasks.register("modrinthPublish") {
     finalizedBy(
         tasks.modrinthSyncBody,
-        bukkit.tasks.modrinth,
-        fabric.tasks.modrinth,
-        velocity.tasks.modrinth
+        bukkit.tasks.modrinth
     )
 }
 
@@ -67,14 +59,7 @@ tasks {
         }
     }
     build {
-        dependsOn(
-            bukkit.tasks.build,
-            fabric.tasks.build,
-            velocity.tasks.build
-        )
-        finalizedBy(
-            javadocJar
-        )
+        dependsOn(bukkit.tasks.build)
     }
 }
 
@@ -94,11 +79,7 @@ hangarPublish {
         platforms {
             register(Platforms.PAPER) {
                 jar = file("build/libs/${project.name}-bukkit-${project.version}.jar")
-                platformVersions = SUPPORTED_MINECRAFT_VERSION
-            }
-            register(Platforms.VELOCITY) {
-                jar = file("build/libs/${project.name}-velocity-${project.version}.jar")
-                platformVersions = listOf("3.3", "3.4", "3.5")
+                platformVersions = listOf("1.21.4")
             }
         }
     }
