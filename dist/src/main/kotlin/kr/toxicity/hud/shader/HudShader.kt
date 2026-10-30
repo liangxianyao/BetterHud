@@ -9,6 +9,8 @@ data class HudShader(
     val outline: Int,
     val opacity: Double,
     val property: Int,
+    val fractionalX: Double = renderScale.relativeOffset.fractionalX,
+    val fractionalY: Double = renderScale.relativeOffset.fractionalY,
 ) : Comparable<HudShader> {
     companion object {
         private val comparator = Comparator.comparing { s: HudShader ->
@@ -23,6 +25,10 @@ data class HudShader(
             s.opacity
         }.thenComparing { s: HudShader ->
             s.property
+        }.thenComparingDouble { s: HudShader ->
+            s.fractionalX
+        }.thenComparingDouble { s: HudShader ->
+            s.fractionalY
         }
     }
 
@@ -36,7 +42,9 @@ data class HudShader(
         layer,
         0,
         opacity * otherOpacity,
-        property
+        property,
+        fractionalX,
+        fractionalY
     )
 
     fun toFancyHead() = HudShader(
@@ -45,6 +53,8 @@ data class HudShader(
         layer + 1,
         0x8F shl 24,
         opacity,
-        property
+        property,
+        fractionalX,
+        fractionalY
     )
 }

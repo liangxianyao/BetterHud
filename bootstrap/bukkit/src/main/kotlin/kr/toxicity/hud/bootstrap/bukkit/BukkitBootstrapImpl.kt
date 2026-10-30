@@ -268,6 +268,7 @@ class BukkitBootstrapImpl : BukkitBootstrap, JavaPlugin() {
     }
 
     override fun onDisable() {
+        CompatibilityManager.stop()
         core.end()
         audiences.close()
         metrics?.shutdown()

@@ -1,6 +1,7 @@
 package kr.toxicity.hud.bootstrap.bukkit.manager
 
 import kr.toxicity.hud.api.update.UpdateEvent
+import kr.toxicity.hud.bootstrap.bukkit.compatibility.Compatibility
 import kr.toxicity.hud.bootstrap.bukkit.compatibility.craftengine.CraftEngineCompatibility
 import kr.toxicity.hud.bootstrap.bukkit.compatibility.mmocore.MMOCoreCompatibility
 import kr.toxicity.hud.bootstrap.bukkit.compatibility.mmoitems.MMOItemsCompatibility
@@ -17,6 +18,8 @@ import org.bukkit.Bukkit
 import java.util.function.Function
 
 object CompatibilityManager {
+
+    private val active = mutableListOf<Compatibility>()
 
     val compatibilities = mapOf(
         "MMOCore" to {
@@ -52,12 +55,13 @@ object CompatibilityManager {
     )
 
     fun start() {
-        compatibilities.forEach {
-            if (Bukkit.getPluginManager().isPluginEnabled(it.key)) {
-                val obj = it.value()
+        if (active.isNotEmpty()) return
+        compatibilities.forEach { compatibility ->
+            if (Bukkit.getPluginManager().isPluginEnabled(compatibility.key)) {
+                val obj = compatibility.value()
                 runCatching {
                     obj.start()
-                    val namespace = it.key.lowercase()
+                    val namespace = compatibility.key.lowercase()
                     obj.listeners.forEach { entry ->
                         PLUGIN.listenerManager.addListener("${namespace}_${entry.key}") { c ->
                             val reason = entry.value(c)
@@ -78,10 +82,23 @@ object CompatibilityManager {
                     obj.triggers.forEach { entry ->
                         PLUGIN.triggerManager.addTrigger("${namespace}_${entry.key}", entry.value)
                     }
+                }.onSuccess {
+                    active += obj
+                }.onFailure {
+                    runCatching { obj.stop() }.handleFailure { "Unable to stop ${compatibility.key} support after startup failure." }
                 }.handleFailure {
-                    "Unable to load ${it.key} support. checks this: ${obj.website}"
+                    "Unable to load ${compatibility.key} support. checks this: ${obj.website}"
                 }
             }
         }
+    }
+
+    fun stop() {
+        active.asReversed().forEach { compatibility ->
+            runCatching { compatibility.stop() }.handleFailure {
+                "Unable to stop ${compatibility.javaClass.simpleName} support."
+            }
+        }
+        active.clear()
     }
 }

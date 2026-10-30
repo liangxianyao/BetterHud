@@ -17,4 +17,5 @@ interface Compatibility {
     val booleans: Map<String, HudPlaceholder<Boolean>>
 
     fun start() {}
+    fun stop() {}
 }

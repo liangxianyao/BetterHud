@@ -148,6 +148,8 @@ object ShaderManagerImpl : BetterHudManager, ShaderManager {
             }
             applyScale(shader.renderScale.relativeOffset.x, shader.renderScale.scale.x, "x")
             applyScale(shader.renderScale.relativeOffset.y, shader.renderScale.scale.y, "y")
+            if (shader.fractionalX != 0.0) arr.add("    pos.x += ${shader.fractionalX.toFloat()};")
+            if (shader.fractionalY != 0.0) arr.add("    pos.y += ${shader.fractionalY.toFloat()};")
             if (shader.gui.x != 0.0) arr.add("    xGui = ui.x * ${shader.gui.x.toFloat()} / 100.0;")
             if (shader.gui.y != 0.0) arr.add("    yGui = ui.y * ${shader.gui.y.toFloat()} / 100.0;")
             if (shader.layer != 0) arr.add("    layer = ${shader.layer};")

@@ -21,11 +21,18 @@ import kr.toxicity.hud.bootstrap.bukkit.compatibility.mythicmobs.mechanic.ShowPo
 import kr.toxicity.hud.bootstrap.bukkit.util.bukkitPlayer
 import kr.toxicity.hud.bootstrap.bukkit.util.unwrap
 import kr.toxicity.hud.util.BOOTSTRAP
+import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import org.bukkit.Bukkit
+import org.bukkit.attribute.Attribute
+import org.bukkit.entity.LivingEntity
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityEvent
 import org.bukkit.plugin.Plugin
+import org.bukkit.scheduler.BukkitTask
+import java.util.Locale
+import java.util.UUID
 import java.util.function.Function
 
 class MythicMobsCompatibility : Compatibility {
@@ -41,6 +48,18 @@ class MythicMobsCompatibility : Compatibility {
 
     override val numbers: Map<String, HudPlaceholder<Number>>
         get() = mapOf(
+            "boss_unit" to HudPlaceholder.of<Number> { _, _ -> Function { 1.0 } },
+            "boss_health" to HudPlaceholder.of<Number> { _, _ -> Function { p ->
+                FirstFloorBossHudTracker.snapshot(p.uuid())?.health ?: 0.0
+            } },
+            "boss_max_health" to HudPlaceholder.of<Number> { _, _ -> Function { p ->
+                FirstFloorBossHudTracker.snapshot(p.uuid())?.maxHealth ?: 0.0
+            } },
+        ) + (1..10).associate { segment ->
+            "boss_segment_$segment" to HudPlaceholder.of<Number> { _, _ -> Function { p ->
+                FirstFloorBossHudMath.segmentRatio(FirstFloorBossHudTracker.snapshot(p.uuid()), segment)
+            } }
+        } + mapOf(
             "current_cooldown" to HudPlaceholder.builder<Number>()
                 .requiredArgsLength(1)
                 .function { args, _ ->
@@ -171,6 +190,12 @@ class MythicMobsCompatibility : Compatibility {
         )
     override val strings: Map<String, HudPlaceholder<String>>
         get() = mapOf(
+            "boss_name" to HudPlaceholder.of { _, _ -> Function { p ->
+                FirstFloorBossHudTracker.snapshot(p.uuid())?.name.orEmpty()
+            } },
+            "boss_template_id" to HudPlaceholder.of { _, _ -> Function { p ->
+                FirstFloorBossHudTracker.snapshot(p.uuid())?.templateId.orEmpty()
+            } },
             "caster_variable" to HudPlaceholder.builder<String>()
                 .requiredArgsLength(1)
                 .function { args, reason ->
@@ -220,6 +245,9 @@ class MythicMobsCompatibility : Compatibility {
         )
     override val booleans: Map<String, HudPlaceholder<Boolean>>
         get() = mapOf(
+            "boss_visible" to HudPlaceholder.of { _, _ -> Function { p ->
+                FirstFloorBossHudTracker.snapshot(p.uuid()) != null
+            } },
             "has_aura" to HudPlaceholder.builder<Boolean>()
                 .requiredArgsLength(1)
                 .function { args, _ ->
@@ -250,6 +278,7 @@ class MythicMobsCompatibility : Compatibility {
         )
 
     override fun start() {
+        FirstFloorBossHudTracker.start()
         Bukkit.getPluginManager().registerEvents(object : Listener {
             @EventHandler
             fun load(e: MythicMechanicLoadEvent) {
@@ -259,5 +288,98 @@ class MythicMobsCompatibility : Compatibility {
                 }
             }
         }, BOOTSTRAP as Plugin)
+    }
+
+    override fun stop() {
+        FirstFloorBossHudTracker.stop()
+    }
+}
+
+internal data class FirstFloorBossHudSnapshot(
+    val templateId: String,
+    val name: String,
+    val health: Double,
+    val maxHealth: Double
+)
+
+internal object FirstFloorBossHudMath {
+    private val legacySerializer = LegacyComponentSerializer.legacySection()
+    private val miniMessageSerializer = MiniMessage.miniMessage()
+
+    fun templateSlug(templateId: String): String? = when (templateId.lowercase(Locale.ROOT)) {
+        "huangjie_1c1boss" -> "huangjie_1c1boss"
+        "huangjie_1c2boss" -> "huangjie_1c2boss"
+        else -> null
+    }
+
+    fun legacyToMiniMessage(value: String): String =
+        miniMessageSerializer.serialize(legacySerializer.deserialize(value))
+
+    fun segmentRatio(boss: FirstFloorBossHudSnapshot?, segment: Int): Double {
+        if (boss == null || segment !in 1..10 || !boss.health.isFinite() ||
+            !boss.maxHealth.isFinite() || boss.maxHealth <= 0.0) return 0.0
+        val progress = (boss.health / boss.maxHealth).coerceIn(0.0, 1.0)
+        return (progress * 10.0 - (segment - 1)).coerceIn(0.0, 1.0)
+    }
+}
+
+/** Captures Bukkit entity data on the server thread for BetterHud's placeholder evaluations. */
+internal object FirstFloorBossHudTracker {
+    private const val RADIUS = 32.0
+    @Volatile private var published = emptyMap<UUID, FirstFloorBossHudSnapshot>()
+    private var task: BukkitTask? = null
+    private var failureLogged = false
+
+    fun snapshot(playerId: UUID): FirstFloorBossHudSnapshot? = published[playerId]
+
+    fun start() {
+        if (task != null) return
+        task = Bukkit.getScheduler().runTaskTimer(BOOTSTRAP as Plugin, ::scanSafely, 10L, 10L)
+    }
+
+    fun stop() {
+        task?.cancel()
+        task = null
+        published = emptyMap()
+        failureLogged = false
+    }
+
+    private fun scanSafely() {
+        try {
+            if (!Bukkit.isPrimaryThread()) return
+            val next = HashMap<UUID, FirstFloorBossHudSnapshot>()
+            for (player in Bukkit.getOnlinePlayers()) {
+                if (!player.isOnline) continue
+                val origin = player.location
+                val nearest = player.getNearbyEntities(RADIUS, RADIUS, RADIUS)
+                    .asSequence()
+                    .filterIsInstance<LivingEntity>()
+                    .filter { it.isValid && !it.isDead && it.world == player.world }
+                    .mapNotNull { living ->
+                        val distance = origin.distanceSquared(living.location)
+                        if (distance > RADIUS * RADIUS) return@mapNotNull null
+                        val type = MythicBukkit.inst().mobManager.getMythicMobInstance(living)?.mobType
+                            ?: return@mapNotNull null
+                        val slug = FirstFloorBossHudMath.templateSlug(type) ?: return@mapNotNull null
+                        val maxHealth = living.getAttribute(Attribute.MAX_HEALTH)?.value ?: return@mapNotNull null
+                        val health = living.health
+                        if (!maxHealth.isFinite() || maxHealth <= 0.0 || !health.isFinite()) return@mapNotNull null
+                        val snapshot = FirstFloorBossHudSnapshot(slug, FirstFloorBossHudMath.legacyToMiniMessage(living.name),
+                            health.coerceIn(0.0, maxHealth), maxHealth)
+                        Triple(distance, living.uniqueId, snapshot)
+                    }
+                    .minWithOrNull(compareBy<Triple<Double, UUID, FirstFloorBossHudSnapshot>> { it.first }
+                        .thenBy { it.second })
+                if (nearest != null) next[player.uniqueId] = nearest.third
+            }
+            published = next
+            failureLogged = false
+        } catch (exception: RuntimeException) {
+            published = emptyMap()
+            if (!failureLogged) {
+                Bukkit.getLogger().warning("[BetterHud] First-floor Boss HUD scan failed: ${exception.message}")
+                failureLogged = true
+            }
+        }
     }
 }
