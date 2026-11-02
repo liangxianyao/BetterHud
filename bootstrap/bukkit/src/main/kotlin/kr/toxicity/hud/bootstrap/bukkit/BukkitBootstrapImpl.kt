@@ -187,6 +187,7 @@ class BukkitBootstrapImpl : BukkitBootstrap, JavaPlugin() {
         val pluginManager = Bukkit.getPluginManager()
         nms = when (minecraftVersion) {
             MinecraftVersion.V1_21_4 -> kr.toxicity.hud.nms.v1_21_R3.NMSImpl()
+            MinecraftVersion.V1_21_11 -> kr.toxicity.hud.nms.v1_21_R7.NMSImpl()
             else -> {
                 warn("Unsupported minecraft version: $minecraftVersion")
                 pluginManager.disablePlugin(this)

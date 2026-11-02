@@ -45,6 +45,7 @@ include(
     "api:bukkit-api",
     "dist",
     "nms:v1_21_R3",
+    "nms:v1_21_R7",
     "scheduler:standard",
     "scheduler:paper",
     "bedrock:geyser",

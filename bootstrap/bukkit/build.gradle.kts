@@ -17,6 +17,7 @@ dependencies {
     shade(project(":scheduler:paper")) { isTransitive = false }
 
     shade(project(":nms:v1_21_R3", configuration = "reobf")) { isTransitive = false }
+    shade(project(":nms:v1_21_R7", configuration = "reobf")) { isTransitive = false }
 
     shade(libs.bstats.bukkit)
     shade(libs.kotlinStdlib)
